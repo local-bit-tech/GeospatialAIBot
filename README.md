@@ -1,12 +1,25 @@
 # AI for Safer Roads — Speed Safety Score
 
-Submission for the **ADB AI for Safer Roads Innovation Challenge 2026**.
+Submission for the **AI for Safer Roads Innovation Challenge**, organized by:
+
+- Asian Development Bank (ADB)
+- World Bank Development Impact Group
+- AI for Good
+- International Telecommunication Union (ITU)
+
+**Challenge statement:** How might we use AI and mobility data to determine
+where speed limits are misaligned with real-world road conditions,
+supporting evidence-based speed management across Asia and the Pacific?
 
 ## What this does
 
 Posted speed limits don't always match what's safe for the people actually
-using a road — pedestrians, cyclists, and motorcyclists in particular. This
-project scores ~70,000 road segments across **India (Maharashtra)** and
+using a road — pedestrians, cyclists, and motorcyclists in particular, and
+they often become outdated as the surrounding environment changes. Rather
+than detecting speeding behaviour, this project asks a different question:
+**is the posted speed limit itself appropriate** for each road segment?
+
+It scores ~70,000 road segments across **India (Maharashtra)** and
 **Thailand** on how far their posted speed limit is misaligned with Safe
 System principles and vulnerable road user (VRU) exposure, combining:
 
@@ -22,7 +35,8 @@ System principles and vulnerable road user (VRU) exposure, combining:
 
 The result is a 0–100 **Speed Safety Score** per segment, a High/Medium/Low
 risk tier, and an interactive map you can explore segment by segment —
-including a one-click link to street-level imagery for context.
+including a one-click link to street-level imagery for context — surfacing
+candidate roads for speed limit review by policymakers.
 
 This is a transparent, hand-weighted scoring formula, not a trained
 predictive model — every score is traceable back to the four inputs above.
@@ -117,9 +131,49 @@ ai4saferroads/
 - **Helmet-wearing / motorcycle exposure**: regional survey results provided
   in `Archive/*.gpkg` (Boundaries_4helmet for Maharashtra,
   Thailand_Province_Boundaries for Thailand), used as a VRU exposure proxy.
+- **Street-level imagery**: [Mapillary](https://www.mapillary.com/), linked
+  per segment via `mapillary_url`.
 - **Data dictionary**: *"AI for Safer Roads 2026 — Description of data
   sources"*, Richard Owen / Agilysis, May 2026 (PDF included in this repo).
+
+Some datasets referenced in early planning (population density, school/market
+proximity) are available only through the competition under NDA and are not
+yet integrated — see Future Enhancements below.
 
 Full methodology, including how the two countries' differing data schemas
 were reconciled and a discussion of the validation results: see
 **[`docs/methodology.md`](docs/methodology.md)**.
+
+## Status
+
+Implemented: schema-harmonized loading for both countries, the reliability
+filter, all six engineered features, the weighted Speed Safety Score and
+risk tiers, sensitivity analysis, GeoJSON/GeoPackage/CSV exports, and the
+interactive map. Not implemented (see `src/train_model.py` for a scaffold):
+a trained predictive model — the current score is a transparent rule-based
+formula, by design, not a model fit to outcome data.
+
+## Future enhancements
+
+- Population density, school proximity, and market proximity layers (once
+  available) to sharpen the `vru_exposure` feature beyond the current
+  urban-flag + helmet-wearing proxy.
+- A trained model validated against real outcome data (crash/fatality
+  records), rather than the current rule-based score.
+- Cross-country model transfer to additional Asia-Pacific countries.
+- An interactive web dashboard beyond the static Folium map.
+
+## Team
+
+TBD
+
+## Acknowledgements
+
+Developed as part of the AI for Safer Roads Innovation Challenge organized by
+the Asian Development Bank in collaboration with the World Bank Development
+Impact Group, AI for Good, and the International Telecommunication Union
+(ITU).
+
+## License
+
+This repository is intended for research and competition purposes.
