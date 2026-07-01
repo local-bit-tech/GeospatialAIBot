@@ -83,13 +83,37 @@ def compute_residuals(pipeline, gdf=None):
     return gdf
 
 
+RESULTS_COLUMNS = [
+    "rank", "segment_id", "country", "road_class", "SpeedLimit",
+    "F85thPercentileSpeed", "expected_speed", "speed_residual",
+]
+
+
+def save_results(gdf, path="outputs/f85_residual_results.csv"):
+    """Write every scored segment to a CSV, ranked by speed_residual (highest first).
+
+    Unlike a top-N preview, this covers all segments so the full ranking
+    can be handed to reviewers or joined back to the map/GIS outputs.
+    """
+    ranked = gdf.sort_values("speed_residual", ascending=False).reset_index(drop=True)
+    ranked.insert(0, "rank", ranked.index + 1)
+    ranked[RESULTS_COLUMNS].to_csv(path, index=False)
+    return path
+
+
 if __name__ == "__main__":
     pipeline, (X_test, y_test) = train()
     evaluate(pipeline, X_test, y_test)
 
     gdf = compute_residuals(pipeline)
-    top_outliers = gdf.nlargest(10, "speed_residual")[
-        ["segment_id", "country", "road_class", "F85thPercentileSpeed", "expected_speed", "speed_residual"]
-    ]
-    print("\nTop 10 segments where actual speed most exceeds context-based expectation:")
-    print(top_outliers.to_string(index=False))
+    out_path = save_results(gdf)
+
+    print(f"\nSaved full ranked results for all {len(gdf)} segments to {out_path}")
+    print("\nspeed_residual summary (actual - expected, km/h):")
+    print(gdf["speed_residual"].describe().round(2).to_string())
+
+    print("\nBy country:")
+    print(gdf.groupby("country")["speed_residual"].describe().round(2).to_string())
+
+    print("\nBy road class:")
+    print(gdf.groupby("road_class")["speed_residual"].describe().round(2).to_string())
