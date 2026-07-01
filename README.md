@@ -34,9 +34,12 @@ System principles and vulnerable road user (VRU) exposure, combining:
   vulnerability).
 
 The result is a 0–100 **Speed Safety Score** per segment, a High/Medium/Low
-risk tier, and an interactive map you can explore segment by segment —
-including a one-click link to street-level imagery for context — surfacing
-candidate roads for speed limit review by policymakers.
+risk tier, a **recommended speed limit** (interpolated within the segment's
+road-class Safe System range by VRU exposure, rounded to the nearest 10
+km/h) and how far the posted limit deviates from it, and an interactive map
+you can explore segment by segment — including a one-click link to
+street-level imagery for context — surfacing candidate roads for speed
+limit review by policymakers.
 
 This is a transparent, hand-weighted scoring formula, not a trained
 predictive model — every score is traceable back to the four inputs above.
@@ -110,7 +113,7 @@ ai4saferroads/
 
 | File | Contents |
 |---|---|
-| `outputs/segments_scored.geojson` | All reliable segments with every engineered feature, the Speed Safety Score, and risk tier |
+| `outputs/segments_scored.geojson` | All reliable segments with every engineered feature, the Speed Safety Score, risk tier, and a per-segment `recommended_speed_limit`/`speed_limit_gap` |
 | `outputs/segments_scored.gpkg` | Same data as a GeoPackage, for ArcGIS / QGIS use |
 | `outputs/summary_statistics.csv` | Segment counts, risk tier breakdown, score/gap statistics, validation correlation, sensitivity overlap |
 | `outputs/sample_size_distribution.png` | Histogram of `Sample_Size_Total` across both countries |

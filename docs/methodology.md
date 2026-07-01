@@ -92,6 +92,20 @@ separate, off-by-default "Insufficient data" layer.
   coordinates in `StreetImageLink` (the data guide describes this field as
   endpoint lon/lat pairs, not a sorted bounding box — but centroid averaging
   produces the correct midpoint either way).
+- **`recommended_speed_limit`** interpolates within the segment's road-class
+  Safe System range (the same `motorway`/`trunk`/.../`unclassified` ranges
+  used by `road_mismatch`), pulled toward the class **minimum** as
+  `vru_exposure` rises toward 1 and toward the class **maximum** as it falls
+  toward 0:
+  `class_min + (class_max - class_min) * (1 - vru_exposure)`, rounded to the
+  nearest 10 km/h (how limits are actually posted). Segments whose
+  `road_class` has no defined Safe System range get `NaN`.
+- **`speed_limit_gap`** = posted `SpeedLimit` minus `recommended_speed_limit`.
+  Positive means the posted limit sits above what Safe System principles
+  suggest for that segment's vulnerable-road-user exposure — this is the
+  field to hand a transport ministry official for "what should this
+  segment's limit actually be." Across the 14,546 reliable segments: mean
+  gap +12.8 km/h, 73.3% of segments posted above their recommendation.
 
 ## Speed Safety Score
 

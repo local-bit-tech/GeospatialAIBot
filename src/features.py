@@ -87,6 +87,27 @@ def compute_vru_exposure(gdf, helmet_layers=None):
     return gdf
 
 
+def compute_recommended_speed_limit(gdf):
+    """Add recommended_speed_limit and speed_limit_gap for each segment.
+
+    recommended_speed_limit interpolates within the segment's road-class
+    Safe System range (SAFE_SYSTEM_SPEED_RANGES), pulled toward the class
+    minimum as vru_exposure rises toward 1 and toward the class maximum as
+    it falls toward 0, rounded to the nearest 10 km/h (how limits are
+    actually posted). Segments whose road_class has no defined range get
+    NaN. speed_limit_gap is the posted SpeedLimit minus this recommendation
+    -- positive means the posted limit is above what Safe System principles
+    suggest for that segment's exposure.
+    """
+    ranges = gdf["road_class"].map(SAFE_SYSTEM_SPEED_RANGES)
+    class_min = ranges.map(lambda r: r[0] if isinstance(r, tuple) else np.nan)
+    class_max = ranges.map(lambda r: r[1] if isinstance(r, tuple) else np.nan)
+    recommended = class_min + (class_max - class_min) * (1 - gdf["vru_exposure"])
+    gdf["recommended_speed_limit"] = (recommended / 10).round() * 10
+    gdf["speed_limit_gap"] = gdf["SpeedLimit"] - gdf["recommended_speed_limit"]
+    return gdf
+
+
 def _bio_risk_for_speed(speed):
     """Look up the fatality-probability band for a single posted speed limit."""
     if pd.isna(speed):
@@ -134,6 +155,7 @@ def engineer_features(gdf, helmet_layers=None):
     gdf = compute_road_mismatch(gdf)
     gdf = compute_urban_flag(gdf)
     gdf = compute_vru_exposure(gdf, helmet_layers)
+    gdf = compute_recommended_speed_limit(gdf)
     gdf = compute_bio_risk(gdf)
     gdf = compute_confidence_weight(gdf)
     gdf = compute_mapillary_url(gdf)

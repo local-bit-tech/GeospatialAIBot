@@ -13,3 +13,5 @@ max_speed_safety_score,53.3
 mean_speed_gap_kmh,7.07
 correlation_speed_safety_score_vs_ranked_percentile,-0.209
 sensitivity_avg_top20pct_overlap_pct,90.28
+mean_speed_limit_gap_kmh,12.8
+pct_segments_posted_above_recommendation,73.3
