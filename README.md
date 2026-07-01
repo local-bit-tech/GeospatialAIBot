@@ -165,7 +165,10 @@ formula, by design, not a model fit to outcome data.
 
 ## Team
 
-TBD
+Augustin Birladeanu
+Mounaraga Annavaram
+Yassa Ahmad
+Gian Fernandez
 
 ## Acknowledgements
 
