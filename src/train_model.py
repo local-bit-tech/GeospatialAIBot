@@ -33,7 +33,10 @@ FEATURE_COLUMNS = [
     "confidence_weight",
 ]
 
-TARGET_COLUMN = None  # TODO: set this once a real supervised target is agreed.
+TARGET_COLUMN = None  
+# The target column is the outcome the model will learn to predict.
+# Replace None with a valid column name (e.g. "RankedPercentile") before training.
+# TODO: set this once a real supervised target is agreed. 
 
 
 def load_training_data(path="outputs/segments_scored.geojson"):
