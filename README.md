@@ -171,7 +171,14 @@ needs segment- or province-level crash data, which hasn't been located yet.
 
 ## Team
 
-TBD
+Augustin Birladeanu
+
+Mounaraga Annavaram
+
+Yassa Ahmad
+
+Gian Fernandez
+
 
 ## Acknowledgements
 
