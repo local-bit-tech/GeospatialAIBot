@@ -149,9 +149,15 @@ were reconciled and a discussion of the validation results: see
 Implemented: schema-harmonized loading for both countries, the reliability
 filter, all six engineered features, the weighted Speed Safety Score and
 risk tiers, sensitivity analysis, GeoJSON/GeoPackage/CSV exports, and the
-interactive map. Not implemented (see `src/train_model.py` for a scaffold):
-a trained predictive model — the current score is a transparent rule-based
-formula, by design, not a model fit to outcome data.
+interactive map. `src/train_model.py` now runs and fits a
+`RandomForestRegressor` against `speed_safety_score` itself (a distillation
+sanity check, not a model fit to independent outcome data — see that
+file's docstring). A genuine outcome-driven model still isn't implemented:
+the ADB ATO Road Safety workbook (the crash/fatality data available so
+far) is national-level only (one row per country per year), so it can't be
+joined to individual road segments as a training label without every
+segment in a country collapsing to the same value. A real predictive model
+needs segment- or province-level crash data, which hasn't been located yet.
 
 ## Future enhancements
 
