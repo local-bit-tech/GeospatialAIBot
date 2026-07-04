@@ -30,8 +30,9 @@ System principles and vulnerable road user (VRU) exposure, combining:
 - **The likely consequence of a crash at that speed** for an unprotected
   road user (a standard pedestrian fatality-risk curve).
 - **How exposed vulnerable road users are** on that segment (urban
-  context plus regional helmet-wearing data, as a proxy for two-wheeler
-  vulnerability).
+  context, regional helmet-wearing data as a proxy for two-wheeler
+  vulnerability, and — new — WorldPop population-density near the
+  segment as a direct pedestrian-exposure signal).
 
 The result is a 0–100 **Speed Safety Score** per segment, a High/Medium/Low
 risk tier, a **recommended speed limit** (interpolated within the segment's
@@ -66,6 +67,20 @@ committed to this repo — see `.gitignore`):
 The VRU exposure feature also expects the helmet-wearing survey GeoPackages
 under `Archive/` (see Data sources below).
 
+The pedestrian-exposure feature additionally expects two WorldPop
+population-density GeoTIFFs (2020, 100m resolution, CC BY 4.0) — download
+them manually from WorldPop's
+[Population Density listing](https://hub.worldpop.org/geodata/listing?id=76)
+and place them at:
+
+- `data/external/worldpop/ind_pop_density_2020.tif`
+- `data/external/worldpop/tha_pop_density_2020.tif`
+
+These aren't committed to this repo (large binaries, `*.tif` is
+gitignored). If they're not present, the pipeline still runs end-to-end —
+`vru_exposure` gracefully falls back to the urban-flag + helmet-wearing
+formula (see `docs/methodology.md`).
+
 ## How to run
 
 Run the notebooks **in order** from the `notebooks/` directory:
@@ -94,13 +109,16 @@ notebooks import rather than duplicating.
 ai4saferroads/
 ├── data/
 │   ├── raw/              # input GeoJSON (not committed)
+│   ├── external/         # WorldPop rasters etc. (not committed)
 │   └── processed/        # filtered reliable / low-confidence segments
 ├── notebooks/             # 01-04, run in order
 ├── src/
 │   ├── utils.py          # loading, schema harmonisation, filtering
 │   ├── features.py       # speed_gap, road_mismatch, vru_exposure, bio_risk...
+│   ├── pedestrian_exposure.py  # WorldPop population-density sampling
 │   ├── score.py           # weighted score, risk tiers, sensitivity analysis
 │   └── train_model.py    # unexecuted scaffold for a future predictive model
+├── tests/                 # pytest unit tests (features, pedestrian_exposure)
 ├── outputs/                # final deliverables (see below)
 ├── docs/
 │   ├── index.html        # interactive map (GitHub Pages source)
@@ -134,14 +152,19 @@ ai4saferroads/
 - **Helmet-wearing / motorcycle exposure**: regional survey results provided
   in `Archive/*.gpkg` (Boundaries_4helmet for Maharashtra,
   Thailand_Province_Boundaries for Thailand), used as a VRU exposure proxy.
+- **Pedestrian exposure**: [WorldPop](https://hub.worldpop.org/project/list)
+  gridded population-density rasters (2020, 100m resolution, CC BY 4.0,
+  free/no API key), sampled within a 100m buffer of each segment — see
+  `src/pedestrian_exposure.py` and the Setup section above for the manual
+  download step.
 - **Street-level imagery**: [Mapillary](https://www.mapillary.com/), linked
   per segment via `mapillary_url`.
 - **Data dictionary**: *"AI for Safer Roads 2026 — Description of data
   sources"*, Richard Owen / Agilysis, May 2026 (PDF included in this repo).
 
-Some datasets referenced in early planning (population density, school/market
-proximity) are available only through the competition under NDA and are not
-yet integrated — see Future Enhancements below.
+Some datasets referenced in early planning (school/market proximity) are
+available only through the competition under NDA and are not yet
+integrated — see Future Enhancements below.
 
 Full methodology, including how the two countries' differing data schemas
 were reconciled and a discussion of the validation results: see
@@ -150,9 +173,11 @@ were reconciled and a discussion of the validation results: see
 ## Status
 
 Implemented: schema-harmonized loading for both countries, the reliability
-filter, all six engineered features, the weighted Speed Safety Score and
-risk tiers, sensitivity analysis, GeoJSON/GeoPackage/CSV exports, and the
-interactive map. `src/train_model.py` now runs and fits a
+filter, all six engineered features (`vru_exposure` now blends in a WorldPop
+population-density signal alongside urban_flag and helmet-wearing — see
+`src/pedestrian_exposure.py` and `tests/`), the weighted Speed Safety Score
+and risk tiers, sensitivity analysis, GeoJSON/GeoPackage/CSV exports, and
+the interactive map. `src/train_model.py` now runs and fits a
 `RandomForestRegressor` against `speed_safety_score` itself (a distillation
 sanity check, not a model fit to independent outcome data — see that
 file's docstring). A genuine outcome-driven model still isn't implemented:
@@ -164,9 +189,18 @@ needs segment- or province-level crash data, which hasn't been located yet.
 
 ## Future enhancements
 
-- Population density, school proximity, and market proximity layers (once
-  available) to sharpen the `vru_exposure` feature beyond the current
-  urban-flag + helmet-wearing proxy.
+- **Phase 2 — graded urbanization**: replace the binary `urban_flag` with
+  [GHS-SMOD](https://human-settlement.emergency.copernicus.eu/ghs_smod2023.php)
+  (Global Human Settlement Layer degree-of-urbanization grid), reusing the
+  same raster-sampling approach as `src/pedestrian_exposure.py`.
+- **Phase 3 — POI proximity/density**: school, market, and bus-stop
+  proximity via [Overture Maps Places](https://docs.overturemaps.org/guides/places/)
+  (same open, no-API-key, CDLA-licensed source already used for the road
+  network), read as Parquet from the public S3 bucket via DuckDB.
+- **Phase 4 — Mapillary pedestrian infrastructure**: crosswalk, pedestrian
+  signal, and bench density from Mapillary's open vector-tile map features
+  (note: Mapillary does not expose raw pedestrian counts, only
+  infrastructure detections, and requires a user-supplied API token).
 - A trained model validated against real outcome data (crash/fatality
   records), rather than the current rule-based score.
 - Cross-country model transfer to additional Asia-Pacific countries.

@@ -6,6 +6,10 @@ import numpy as np
 import pandas as pd
 
 # Baseline weights for the four risk components. Must sum to 1.0.
+# vru_exposure's own internal composition (urban_flag / helmet risk /
+# population-density proxy) is rebalanced in compute_vru_exposure
+# (src/features.py) -- its weight here does not need to change when that
+# internal blend changes, since vru_exposure is still a single 0-1 signal.
 BASE_WEIGHTS = {
     "speed_gap_norm": 0.30,
     "road_mismatch": 0.25,

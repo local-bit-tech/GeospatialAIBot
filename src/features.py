@@ -55,35 +55,86 @@ def compute_urban_flag(gdf):
     return gdf
 
 
-def compute_vru_exposure(gdf, helmet_layers=None):
-    """Add vru_exposure: 0.40 urban_flag + 0.60 normalised low-helmet-compliance risk by zone.
+# Full-strength weights for vru_exposure's three components, used when
+# helmet-wearing data and pop_density_norm are both supplied. Chosen so
+# that dropping any one component and renormalising the rest by their
+# weight sum recovers a clean sub-formula: urban_flag:helmet_risk are kept
+# in a fixed 0.40:0.60 ratio (urban_flag alone gets renormalised weight 1.0
+# if helmet data is unavailable too), the same proportions the score used
+# before pop_density existed -- so a segment with no WorldPop coverage
+# scores identically to the pre-pedestrian-exposure formula, not silently
+# under-weighted.
+VRU_EXPOSURE_WEIGHTS = {
+    "urban_flag": 0.24,
+    "helmet_risk": 0.36,
+    "pop_density": 0.40,
+}
+
+
+def _blend(components):
+    """Weighted average of {name: (series, weight)} pairs, skipping series that are None.
+
+    Renormalisation happens per row against whichever components actually
+    have a non-NaN value on that row, not just whichever components were
+    passed in at all. This matters because a component can be "supplied" as
+    a real Series that is nonetheless entirely (or partially) NaN -- e.g.
+    pop_density_norm when no WorldPop raster is available for a country --
+    and treating "supplied" as "usable" would let a handful of NaNs silently
+    propagate through the weighted sum and NaN-out every row's blend,
+    instead of gracefully falling back to the remaining components.
+    """
+    active = {name: (series, weight) for name, (series, weight) in components.items() if series is not None}
+    if not active:
+        raise ValueError("At least one component must be supplied to _blend")
+    values = pd.concat({name: series for name, (series, _) in active.items()}, axis=1)
+    weights = pd.Series({name: weight for name, (_, weight) in active.items()})
+    valid = values.notna()
+    effective_weights = valid.mul(weights, axis=1)
+    weight_sums = effective_weights.sum(axis=1)
+    weighted = (values.fillna(0) * effective_weights).sum(axis=1)
+    return (weighted / weight_sums).where(weight_sums > 0)
+
+
+def compute_vru_exposure(gdf, helmet_layers=None, pop_density_norm=None):
+    """Add vru_exposure: urban_flag + low-helmet-compliance risk + population-density proxy.
 
     helmet_layers: optional dict of {country: zones_geodataframe} with a
     helmet_rate column (0-1). When supplied, the inverse of the local helmet
     wearing rate (i.e. exposure of unprotected riders) is spatially joined to
-    each segment and blended with urban_flag. Resolution differs sharply
-    between countries (4 zones for Maharashtra vs 77 provinces for Thailand),
-    so this is a coarse proxy, not a precise exposure model. With no helmet
-    layer supplied, urban_flag alone is used as the proxy.
+    each segment. Resolution differs sharply between countries (4 zones for
+    Maharashtra vs 77 provinces for Thailand), so this is a coarse proxy, not
+    a precise exposure model.
+
+    pop_density_norm: optional 0-1 normalised population-density Series
+    (see src/pedestrian_exposure.py, a WorldPop-derived proxy for how many
+    people are near the segment) aligned to gdf's index.
+
+    Either or both may be omitted (e.g. no helmet layer available, or
+    WorldPop rasters not downloaded locally) -- see VRU_EXPOSURE_WEIGHTS and
+    _blend for how the formula degrades gracefully in that case.
     """
-    if not helmet_layers:
-        gdf["vru_exposure"] = gdf["urban_flag"]
-        return gdf
+    components = {"urban_flag": (gdf["urban_flag"], VRU_EXPOSURE_WEIGHTS["urban_flag"])}
 
-    low_helmet_risk = pd.Series(np.nan, index=gdf.index)
-    for country, zones in helmet_layers.items():
-        country_mask = gdf["country"] == country
-        if not country_mask.any():
-            continue
-        helmet_rate = assign_zone_attribute(gdf.loc[country_mask], zones, METRIC_CRS[country])
-        low_helmet_risk.loc[country_mask] = 1 - helmet_rate
+    if helmet_layers:
+        low_helmet_risk = pd.Series(np.nan, index=gdf.index)
+        for country, zones in helmet_layers.items():
+            country_mask = gdf["country"] == country
+            if not country_mask.any():
+                continue
+            helmet_rate = assign_zone_attribute(gdf.loc[country_mask], zones, METRIC_CRS[country])
+            low_helmet_risk.loc[country_mask] = 1 - helmet_rate
 
-    scaler = MinMaxScaler()
-    low_helmet_risk_norm = pd.Series(
-        scaler.fit_transform(low_helmet_risk.fillna(low_helmet_risk.mean()).to_frame()).flatten(),
-        index=gdf.index,
-    )
-    gdf["vru_exposure"] = (0.40 * gdf["urban_flag"] + 0.60 * low_helmet_risk_norm).clip(0, 1)
+        scaler = MinMaxScaler()
+        low_helmet_risk_norm = pd.Series(
+            scaler.fit_transform(low_helmet_risk.fillna(low_helmet_risk.mean()).to_frame()).flatten(),
+            index=gdf.index,
+        )
+        components["helmet_risk"] = (low_helmet_risk_norm, VRU_EXPOSURE_WEIGHTS["helmet_risk"])
+
+    if pop_density_norm is not None:
+        components["pop_density"] = (pop_density_norm, VRU_EXPOSURE_WEIGHTS["pop_density"])
+
+    gdf["vru_exposure"] = _blend(components).clip(0, 1)
     return gdf
 
 
@@ -149,12 +200,12 @@ def compute_mapillary_url(gdf):
     return gdf
 
 
-def engineer_features(gdf, helmet_layers=None):
+def engineer_features(gdf, helmet_layers=None, pop_density_norm=None):
     """Run all feature engineering steps on a reliable-segments GeoDataFrame, in order."""
     gdf = compute_speed_gap(gdf)
     gdf = compute_road_mismatch(gdf)
     gdf = compute_urban_flag(gdf)
-    gdf = compute_vru_exposure(gdf, helmet_layers)
+    gdf = compute_vru_exposure(gdf, helmet_layers, pop_density_norm)
     gdf = compute_recommended_speed_limit(gdf)
     gdf = compute_bio_risk(gdf)
     gdf = compute_confidence_weight(gdf)
